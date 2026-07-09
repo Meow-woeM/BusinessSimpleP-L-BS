@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Balance Sheet — Simple P&amp;L{% endblock %}
+{% block content %}
+<h1>Balance Sheet</h1>
+
+<section class="card">
+  <form method="get" class="filter-bar">
+    <label>As of <input type="date" name="as_of" value="{{ as_of }}" required></label>
+    <button type="submit">Apply</button>
+    <a class="button-link" href="{{ url_for('export_balance_sheet_csv', as_of=as_of) }}">Download CSV</a>
+  </form>
+</section>
+
+<section class="card report">
+  <h2>As of {{ as_of }}</h2>
+  <table>
+    <tbody>
+      <tr class="section-row"><td colspan="2">Assets</td></tr>
+      {% for row in report.assets %}
+        <tr><td class="indent">{{ row.name }}</td><td class="num">{{ row.amount | usd }}</td></tr>
+      {% endfor %}
+      <tr class="total-row"><td>Total Assets</td><td class="num">{{ report.total_assets | usd }}</td></tr>
+
+      <tr class="section-row"><td colspan="2">Liabilities</td></tr>
+      {% for row in report.liabilities %}
+        <tr><td class="indent">{{ row.name }}</td><td class="num">{{ row.amount | usd }}</td></tr>
+      {% else %}
+        <tr><td class="indent empty">No liabilities</td><td class="num">$0.00</td></tr>
+      {% endfor %}
+      <tr class="total-row"><td>Total Liabilities</td><td class="num">{{ report.total_liabilities | usd }}</td></tr>
+
+      <tr class="section-row"><td colspan="2">Equity</td></tr>
+      {% for row in report.equity %}
+        <tr><td class="indent">{{ row.name }}</td><td class="num">{{ row.amount | usd }}</td></tr>
+      {% endfor %}
+      <tr class="total-row"><td>Total Equity</td><td class="num">{{ report.total_equity | usd }}</td></tr>
+
+      <tr class="grand-total">
+        <td>Total Liabilities + Equity</td>
+        <td class="num">{{ (report.total_liabilities + report.total_equity) | usd }}</td>
+      </tr>
+    </tbody>
+  </table>
+  {% if report.balanced %}
+    <p class="balance-check ok">✓ Balanced: assets equal liabilities plus equity.</p>
+  {% else %}
+    <p class="balance-check bad">⚠ Out of balance — this should never happen; restore a backup or report a bug.</p>
+  {% endif %}
+</section>
+{% endblock %}

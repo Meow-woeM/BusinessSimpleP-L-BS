@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Transactions — Simple P&amp;L{% endblock %}
+{% block content %}
+<h1>Transactions</h1>
+
+<section class="card">
+  <h2>Add a transaction</h2>
+  <form method="post" action="{{ url_for('create_transaction') }}">
+    {% include "_txn_form_fields.html" %}
+    <button type="submit">Add transaction</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <h2>History</h2>
+    <a class="button-link" href="{{ url_for('export_transactions_csv') }}">Download CSV</a>
+  </div>
+  <form method="get" class="filter-bar">
+    <label>Type
+      <select name="type">
+        <option value="">All types</option>
+        {% for value, label in txn_type_labels.items() %}
+          <option value="{{ value }}" {% if filter_type == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>From <input type="date" name="start" value="{{ filter_start }}"></label>
+    <label>To <input type="date" name="end" value="{{ filter_end }}"></label>
+    <button type="submit">Filter</button>
+    <a href="{{ url_for('transactions') }}">Clear</a>
+  </form>
+
+  {% if transactions %}
+  <table>
+    <thead>
+      <tr><th>Date</th><th>Type</th><th>Description</th><th>Category</th><th class="num">Amount</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for t in transactions %}
+      <tr>
+        <td>{{ t.txn_date }}</td>
+        <td>{{ txn_type_labels.get(t.txn_type, t.txn_type) }}</td>
+        <td>{{ t.description }}</td>
+        <td>{{ t.category_name or '—' }}</td>
+        <td class="num {% if t.txn_type == 'income' %}pos{% elif t.txn_type in ('expense', 'owner_draw', 'loan_repayment', 'asset_purchase') %}neg{% endif %}">
+          {{ t.amount_cents | usd }}
+        </td>
+        <td class="actions">
+          <a href="{{ url_for('edit_transaction', txn_id=t.id) }}">Edit</a>
+          <form method="post" action="{{ url_for('delete_transaction', txn_id=t.id) }}"
+                onsubmit="return confirm('Delete this transaction?');">
+            <button type="submit" class="link-button danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No transactions yet. Add your first one above.</p>
+  {% endif %}
+</section>
+{% endblock %}

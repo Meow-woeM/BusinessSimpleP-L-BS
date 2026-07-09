@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Settings — Simple P&amp;L{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+
+<section class="card">
+  <h2>Categories</h2>
+  <div class="two-col">
+    <div>
+      <h3>Income</h3>
+      <ul class="plain">
+        {% for c in income_categories %}<li>{{ c.name }}</li>{% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3>Expenses</h3>
+      <ul class="plain">
+        {% for c in expense_categories %}<li>{{ c.name }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  <form method="post" action="{{ url_for('add_category') }}" class="filter-bar">
+    <label>New category <input type="text" name="name" required placeholder="e.g. Consulting"></label>
+    <label>Type
+      <select name="type">
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+      </select>
+    </label>
+    <button type="submit">Add category</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Backup &amp; restore</h2>
+  <p>Download a full backup of your data as JSON, or restore from a previous backup.</p>
+  <p><a class="button-link" href="{{ url_for('export_backup') }}">Download backup (JSON)</a>
+     <a class="button-link" href="{{ url_for('export_transactions_csv') }}">Download transactions (CSV)</a></p>
+  <form method="post" action="{{ url_for('import_backup') }}" enctype="multipart/form-data">
+    <label>Restore from backup file
+      <input type="file" name="backup" accept="application/json,.json" required>
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="confirm" value="yes">
+      I understand this will <strong>replace all existing data</strong> with the backup's contents.
+    </label>
+    <button type="submit" class="danger">Restore backup</button>
+  </form>
+</section>
+{% endblock %}
