@@ -39,10 +39,27 @@ def test_parse_amount_valid(raw, cents):
     assert accounting.parse_amount(raw) == cents
 
 
-@pytest.mark.parametrize("raw", ["", "  ", "abc", "10.555", "0", "-5", "1e3.2", None])
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "", "  ", "abc", "10.555", "0", "-5", "1e3.2", None,
+        # Non-finite / oversized values must be rejected, not crash later.
+        "nan", "NaN", "sNaN", "inf", "Infinity", "-inf",
+        "1e30", "100000000000000000000", "1000000000000.00",
+    ],
+)
 def test_parse_amount_invalid(raw):
     with pytest.raises(LedgerError):
         accounting.parse_amount(raw)
+
+
+def test_parse_amount_allow_zero():
+    assert accounting.parse_amount("0", allow_zero=True) == 0
+    assert accounting.parse_amount("0.00", allow_zero=True) == 0
+    with pytest.raises(LedgerError):
+        accounting.parse_amount("-1", allow_zero=True)
+    with pytest.raises(LedgerError):
+        accounting.parse_amount("nan", allow_zero=True)
 
 
 def test_parse_date_rejects_garbage():
@@ -51,6 +68,20 @@ def test_parse_date_rejects_garbage():
     with pytest.raises(LedgerError):
         accounting.parse_date("June 1")
     assert accounting.parse_date("2026-02-28") == "2026-02-28"
+
+
+def test_parse_date_rejects_unlikely_years():
+    # A typo'd year would otherwise appear on the balance sheet but be
+    # invisible to the "all time" P&L (which starts at 1900).
+    with pytest.raises(LedgerError):
+        accounting.parse_date("0205-06-15")
+    with pytest.raises(LedgerError):
+        accounting.parse_date("3026-06-15")
+    assert accounting.parse_date("1900-01-01") == "1900-01-01"
+
+
+def test_parse_date_normalizes_padding():
+    assert accounting.parse_date("2026-6-1") == "2026-06-01"
 
 
 def test_fmt_money():
@@ -118,6 +149,24 @@ def test_loan_repayment_splits_principal_and_interest(conn):
 def test_loan_repayment_interest_cannot_exceed_total(conn):
     with pytest.raises(LedgerError):
         post(conn, "loan_repayment", amount="100", interest="150")
+
+
+def test_loan_repayment_zero_interest_same_as_blank(conn):
+    txn_id = post(conn, "loan_repayment", amount="100", interest="0")
+    lines = {
+        row["code"]: row["amount_cents"]
+        for row in conn.execute(
+            """SELECT a.code, l.amount_cents FROM entry_lines l
+               JOIN accounts a ON a.id = l.account_id WHERE l.transaction_id = ?""",
+            (txn_id,),
+        )
+    }
+    assert lines == {db.CASH: -10000, db.LOANS_PAYABLE: 10000}
+
+
+def test_loan_repayment_bad_interest_names_the_field(conn):
+    with pytest.raises(LedgerError, match="Interest portion"):
+        post(conn, "loan_repayment", amount="100", interest="abc")
 
 
 def test_income_rejects_expense_category(conn):
@@ -314,6 +363,24 @@ def test_import_rejects_wrong_format(conn):
         accounting.import_backup(conn, {"format": "something-else"})
     with pytest.raises(LedgerError):
         accounting.import_backup(conn, [1, 2, 3])
+
+
+def test_import_normalizes_unpadded_dates(conn):
+    backup = accounting.export_backup(conn)
+    backup["transactions"].append(
+        {
+            "date": "2026-6-1",
+            "type": "owner_contribution",
+            "description": "hand-edited backup",
+            "lines": [
+                {"account_code": db.CASH, "amount_cents": 100},
+                {"account_code": db.OWNER_CONTRIBUTIONS, "amount_cents": -100},
+            ],
+        }
+    )
+    accounting.import_backup(conn, backup)
+    row = conn.execute("SELECT txn_date FROM transactions").fetchone()
+    assert row["txn_date"] == "2026-06-01"
 
 
 def test_import_rejects_unknown_account_code(conn):

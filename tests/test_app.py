@@ -3,6 +3,8 @@
 import io
 import json
 
+import pytest
+
 
 def add_txn(client, **fields):
     data = {"date": "2026-06-15", "description": ""}
@@ -49,6 +51,13 @@ def test_add_expense_and_balance_sheet(client, conn):
 def test_invalid_amount_flashes_error(client):
     resp = add_txn(client, type="owner_contribution", amount="not-money")
     assert b"not a valid amount" in resp.data
+
+
+@pytest.mark.parametrize("bad", ["nan", "inf", "1e30", "100000000000000000000"])
+def test_pathological_amounts_flash_instead_of_500(client, bad):
+    resp = add_txn(client, type="owner_contribution", amount=bad)
+    assert resp.status_code == 200  # followed redirect back to the form
+    assert b"not a valid amount" in resp.data or b"too large" in resp.data
 
 
 def test_invalid_date_flashes_error(client):

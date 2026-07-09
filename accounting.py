@@ -27,8 +27,12 @@ TXN_TYPE_LABELS = {
 }
 
 
-def parse_amount(raw):
-    """Parse a user-entered dollar amount into positive integer cents."""
+# Well under SQLite's signed 64-bit limit, and far beyond any real business.
+MAX_AMOUNT = Decimal("999999999999.99")
+
+
+def parse_amount(raw, allow_zero=False):
+    """Parse a user-entered dollar amount into non-negative integer cents."""
     text = (raw or "").strip().replace(",", "").replace("$", "")
     if not text:
         raise LedgerError("Amount is required.")
@@ -36,8 +40,13 @@ def parse_amount(raw):
         value = Decimal(text)
     except InvalidOperation:
         raise LedgerError(f"'{raw}' is not a valid amount.")
-    if value <= 0:
+    # NaN/Infinity parse as Decimals but blow up in comparisons/quantize.
+    if not value.is_finite():
+        raise LedgerError(f"'{raw}' is not a valid amount.")
+    if value < 0 or (value == 0 and not allow_zero):
         raise LedgerError("Amount must be greater than zero.")
+    if value > MAX_AMOUNT:
+        raise LedgerError("Amount is too large.")
     cents = (value * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     if value != cents / 100:
         raise LedgerError("Amount can have at most 2 decimal places.")
@@ -49,9 +58,14 @@ def parse_date(raw):
     if not text:
         raise LedgerError("Date is required.")
     try:
-        return datetime.strptime(text, "%Y-%m-%d").date().isoformat()
+        parsed = datetime.strptime(text, "%Y-%m-%d").date()
     except ValueError:
         raise LedgerError(f"'{raw}' is not a valid date (use YYYY-MM-DD).")
+    # Years outside this range are almost certainly typos, and the "all time"
+    # P&L preset starts at 1900 — keep every report consistent with it.
+    if not 1900 <= parsed.year <= 2999:
+        raise LedgerError(f"'{raw}' has an unlikely year — use a date between 1900 and 2999.")
+    return parsed.isoformat()
 
 
 def fmt_money(cents):
@@ -109,7 +123,10 @@ def build_lines(conn, txn_type, form):
         lines = [(cash, amount), (account_id(conn, db.LOANS_PAYABLE), -amount)]
     elif txn_type == "loan_repayment":
         interest_raw = (form.get("interest") or "").strip()
-        interest = parse_amount(interest_raw) if interest_raw else 0
+        try:
+            interest = parse_amount(interest_raw, allow_zero=True) if interest_raw else 0
+        except LedgerError as err:
+            raise LedgerError(f"Interest portion: {err}")
         if interest > amount:
             raise LedgerError("Interest portion cannot exceed the total payment.")
         principal = amount - interest
@@ -416,7 +433,8 @@ def import_backup(conn, data):
     for i, t in enumerate(txns, 1):
         if not isinstance(t, dict):
             raise LedgerError(f"Transaction #{i} is malformed.")
-        parse_date(t.get("date"))
+        # Keep the normalized form so the insert can't trip the date CHECK.
+        t["date"] = parse_date(t.get("date"))
         if t.get("type") not in TXN_TYPE_LABELS:
             raise LedgerError(f"Transaction #{i} has an unknown type.")
         lines = t.get("lines")

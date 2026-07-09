@@ -11,7 +11,7 @@
     </select>
   </label>
   <label>Date
-    <input type="date" name="date" required
+    <input type="date" name="date" required min="1900-01-01" max="2999-12-31"
            value="{{ t.date if t else today }}">
   </label>
   <label>Amount ($)
