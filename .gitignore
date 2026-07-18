@@ -5,3 +5,5 @@ venv/
 ledger.db
 *.db
 .pytest_cache/
+build/
+dist/

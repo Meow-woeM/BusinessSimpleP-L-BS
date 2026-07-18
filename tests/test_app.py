@@ -27,6 +27,32 @@ def test_index_redirects_to_transactions(client):
     assert "/transactions" in resp.headers["Location"]
 
 
+def test_health_endpoint(client):
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    assert resp.get_json() == {"app": "simple-pl"}
+
+
+def test_quit_is_inert_in_web_mode(client):
+    resp = client.post("/quit")
+    assert resp.status_code == 302  # no shutdown event configured -> redirect
+    assert b"Quit" not in client.get("/transactions").data
+
+
+def test_quit_sets_shutdown_event_in_desktop_mode(app):
+    import threading
+
+    event = threading.Event()
+    app.config["SHUTDOWN_EVENT"] = event
+    client = app.test_client()
+    assert b"Quit" in client.get("/transactions").data
+    resp = client.post("/quit")
+    assert resp.status_code == 200
+    assert b"has been closed" in resp.data
+    # The event is set on a short timer so the response can flush first.
+    assert event.wait(timeout=3)
+
+
 def test_add_income_shows_in_history_and_pnl(client, conn):
     cat = conn.execute("SELECT id FROM accounts WHERE name = 'Sales'").fetchone()["id"]
     resp = add_txn(client, type="income", amount="1250.50", category_id=cat)

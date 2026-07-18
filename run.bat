@@ -25,7 +25,7 @@ if not exist .venv (
 call .venv\Scripts\activate.bat
 pip install -q -r requirements.txt
 
-echo Starting Simple P^&L at http://127.0.0.1:5000 - close this window to stop.
-start /b cmd /c "timeout /t 2 >nul & start http://127.0.0.1:5000"
-python app.py
+echo Starting Simple P^&L - your browser will open in a moment.
+echo Close this window or use the Quit button in the app to stop.
+python launcher.py
 pause

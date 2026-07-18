@@ -16,6 +16,12 @@
         <a href="{{ url_for('balance_sheet') }}" {% if request.endpoint == 'balance_sheet' %}class="active"{% endif %}>Balance Sheet</a>
         <a href="{{ url_for('settings') }}" {% if request.endpoint == 'settings' %}class="active"{% endif %}>Settings</a>
       </nav>
+      {% if config.get('SHUTDOWN_EVENT') %}
+      <form method="post" action="{{ url_for('quit_app') }}" class="quit-form"
+            onsubmit="return confirm('Close Simple P&L? Your data is saved automatically.');">
+        <button type="submit" class="link-button">Quit</button>
+      </form>
+      {% endif %}
     </div>
   </header>
   <main class="wrap">

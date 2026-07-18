@@ -1,0 +1,57 @@
+name: Build Windows exe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - claude/income-expenses-tracker-2pupxa
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Run tests on Windows
+        run: python -m pytest tests/ -q
+
+      - name: Build SimplePL.exe
+        run: pyinstaller simplepl.spec
+
+      - name: Smoke-test the exe
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath "dist\SimplePL.exe" -PassThru
+          $ok = $false
+          foreach ($i in 1..30) {
+            Start-Sleep -Seconds 1
+            try {
+              $resp = Invoke-WebRequest -Uri "http://127.0.0.1:5000/health" -UseBasicParsing -TimeoutSec 2
+              if ($resp.Content -match "simple-pl") { $ok = $true; break }
+            } catch {}
+          }
+          if (-not $ok) { Write-Error "exe did not serve /health within 30s"; exit 1 }
+          $pages = @("/transactions", "/pnl", "/balance-sheet", "/settings")
+          foreach ($p in $pages) {
+            $resp = Invoke-WebRequest -Uri "http://127.0.0.1:5000$p" -UseBasicParsing
+            if ($resp.StatusCode -ne 200) { Write-Error "$p returned $($resp.StatusCode)"; exit 1 }
+          }
+          Invoke-WebRequest -Uri "http://127.0.0.1:5000/quit" -Method POST -UseBasicParsing | Out-Null
+          Start-Sleep -Seconds 3
+          if (-not $proc.HasExited) { Write-Error "exe did not exit after /quit"; exit 1 }
+          Write-Output "exe boots, serves all pages, and quits cleanly"
+
+      - name: Upload exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimplePL-windows
+          path: dist/SimplePL.exe
+          if-no-files-found: error

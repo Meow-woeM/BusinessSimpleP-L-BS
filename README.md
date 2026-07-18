@@ -26,6 +26,29 @@ transaction is written atomically as a balanced journal entry.
 
 ## Getting started
 
+### Standalone Windows app (no Python needed)
+
+Every push to the main branches builds `SimplePL.exe` on a Windows runner via
+GitHub Actions (`Build Windows exe` workflow). Download it from the workflow
+run's **SimplePL-windows** artifact, put it anywhere (Desktop, a USB stick),
+and double-click it — your browser opens with the app. Use the **Quit** button
+in the top-right to stop it.
+
+Your data is saved in `ledger.db` next to the exe (or in `%APPDATA%\SimplePL`
+if that folder isn't writable). Errors, if any, are logged to
+`simplepl-error.log` in the same place.
+
+To build the exe yourself on a Windows machine:
+
+```bat
+pip install -r requirements.txt pyinstaller
+pyinstaller simplepl.spec
+```
+
+The result is `dist\SimplePL.exe`.
+
+### Running from source
+
 Requires Python 3.10+ (on Windows, install from https://www.python.org/downloads/
 and check "Add python.exe to PATH" during setup).
 

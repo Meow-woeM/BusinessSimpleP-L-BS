@@ -7,6 +7,8 @@ import csv
 import io
 import json
 import os
+import sys
+import threading
 from datetime import date, timedelta
 
 from flask import (
@@ -71,7 +73,16 @@ def resolve_period(args):
 
 
 def create_app(db_path=None):
-    app = Flask(__name__)
+    # In a PyInstaller build, templates/static are unpacked under _MEIPASS.
+    if getattr(sys, "frozen", False):
+        bundle = sys._MEIPASS
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(bundle, "templates"),
+            static_folder=os.path.join(bundle, "static"),
+        )
+    else:
+        app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "dev-only-not-secret")
     app.config["DB_PATH"] = db_path or os.environ.get("LEDGER_DB", "ledger.db")
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
@@ -90,6 +101,20 @@ def create_app(db_path=None):
     @app.route("/")
     def index():
         return redirect(url_for("transactions"))
+
+    @app.route("/health")
+    def health():
+        # Also used by the desktop launcher to detect a running instance.
+        return {"app": "simple-pl"}
+
+    @app.route("/quit", methods=["POST"])
+    def quit_app():
+        shutdown = app.config.get("SHUTDOWN_EVENT")
+        if shutdown is None:  # only meaningful in the desktop build
+            return redirect(url_for("transactions"))
+        # Delay so this response reaches the browser before the server stops.
+        threading.Timer(0.5, shutdown.set).start()
+        return render_template("quit.html")
 
     # ------------------------------------------------------------------
     # Transactions
