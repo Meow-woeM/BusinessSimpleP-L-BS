@@ -1,0 +1,58 @@
+{# Shared fields for the add/edit transaction forms.
+   Expects: txn (may be none), income_categories, expense_categories, today #}
+{% set t = txn or none %}
+{% set current_type = t.type if t else 'income' %}
+<div class="form-grid">
+  <label>Type
+    <select name="type" id="txn-type" onchange="updateTxnFields()">
+      {% for value, label in txn_type_labels.items() %}
+        <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Date
+    <input type="date" name="date" required min="1900-01-01" max="2999-12-31"
+           value="{{ t.date if t else today }}">
+  </label>
+  <label>Amount ($)
+    <input type="text" name="amount" required inputmode="decimal" placeholder="0.00"
+           value="{{ '%d.%02d' % (t.amount_cents // 100, t.amount_cents % 100) if t else '' }}">
+  </label>
+  <label id="field-income-category">Category
+    <select name="income_category_id" id="income-category-select">
+      {% for c in income_categories %}
+        <option value="{{ c.id }}" {% if t and t.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label id="field-expense-category">Category
+    <select name="expense_category_id" id="expense-category-select">
+      {% for c in expense_categories %}
+        <option value="{{ c.id }}" {% if t and t.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label id="field-interest">Interest portion ($, optional)
+    <input type="text" name="interest" inputmode="decimal" placeholder="0.00"
+           value="{{ '%d.%02d' % (t.interest_cents // 100, t.interest_cents % 100) if t and t.interest_cents else '' }}">
+  </label>
+  <label class="grow">Description (optional)
+    <input type="text" name="description" placeholder="e.g. Invoice #42, July rent"
+           value="{{ t.description if t else '' }}">
+  </label>
+</div>
+<script>
+function updateTxnFields() {
+  var type = document.getElementById('txn-type').value;
+  var incomeCat = document.getElementById('field-income-category');
+  var expenseCat = document.getElementById('field-expense-category');
+  var interest = document.getElementById('field-interest');
+  incomeCat.style.display = type === 'income' ? '' : 'none';
+  expenseCat.style.display = type === 'expense' ? '' : 'none';
+  interest.style.display = type === 'loan_repayment' ? '' : 'none';
+  // Only the visible category select may submit a category_id.
+  document.getElementById('income-category-select').disabled = type !== 'income';
+  document.getElementById('expense-category-select').disabled = type !== 'expense';
+}
+updateTxnFields();
+</script>

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Edit transaction — Simple P&amp;L{% endblock %}
+{% block content %}
+<h1>Edit transaction</h1>
+<section class="card">
+  <form method="post">
+    {% with today = txn.date %}
+      {% include "_txn_form_fields.html" %}
+    {% endwith %}
+    <button type="submit">Save changes</button>
+    <a class="button-link secondary" href="{{ url_for('transactions') }}">Cancel</a>
+  </form>
+</section>
+{% endblock %}
