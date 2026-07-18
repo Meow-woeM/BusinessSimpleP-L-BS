@@ -32,6 +32,53 @@
 </section>
 
 <section class="card">
+  <h2>Google Sheet backup</h2>
+  {% if sync.url %}
+    {% if sync.last_error %}
+      <p class="flash flash-error">Last sync problem: {{ sync.last_error }}</p>
+    {% elif sync.last_sync_at %}
+      <p>✅ Backing up to your Google Sheet. Last update: {{ sync.last_sync_at }}.</p>
+    {% else %}
+      <p>Backup is configured but hasn't run yet — click <strong>Sync now</strong> to test it.</p>
+    {% endif %}
+    {% if sync.dirty %}<p><em>There are changes not yet on the sheet; they upload automatically a moment after each change.</em></p>{% endif %}
+  {% else %}
+    <p>Keep a live copy of every transaction in a Google Sheet in your Google
+    Drive, so a computer failure can't lose your books. Setup takes about five
+    minutes and the instructions are in the box below.</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('save_sync_settings') }}">
+    <label class="grow">Apps Script web app URL
+      <input type="url" name="url" placeholder="https://script.google.com/macros/s/…/exec"
+             value="{{ sync.url }}">
+    </label>
+    <label>Sync token (optional, only if you set one in the script)
+      <input type="text" name="token" value="{{ sync.token }}">
+    </label>
+    <p><button type="submit">Save</button></p>
+  </form>
+  {% if sync.url %}
+  <form method="post" action="{{ url_for('sync_now') }}">
+    <p><button type="submit">Sync now</button></p>
+  </form>
+  {% endif %}
+  <details>
+    <summary>Setup instructions &amp; script (click to open)</summary>
+    <ol>
+      <li>In Google Drive, create a new <strong>Google Sheet</strong> (e.g. “Business Ledger”).</li>
+      <li>In the sheet, open <strong>Extensions → Apps Script</strong>, delete the starter code,
+          and paste the entire script below. Click the save icon.</li>
+      <li>Click <strong>Deploy → New deployment</strong>, choose type <strong>Web app</strong>,
+          set “Execute as” to <strong>Me</strong> and “Who has access” to <strong>Anyone</strong>,
+          then Deploy and <strong>Authorize</strong> it (Google may warn the app is unverified —
+          click Advanced → Go to project).</li>
+      <li>Copy the <strong>Web app URL</strong> into the box above and click Save, then <strong>Sync now</strong>.</li>
+    </ol>
+    <textarea readonly rows="14" style="width:100%; font-family:monospace" onclick="this.select()">{{ apps_script }}</textarea>
+  </details>
+</section>
+
+<section class="card">
   <h2>Backup &amp; restore</h2>
   <p>Download a full backup of your data as JSON, or restore from a previous backup.</p>
   <p><a class="button-link" href="{{ url_for('export_backup') }}">Download backup (JSON)</a>

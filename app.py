@@ -7,6 +7,7 @@ import csv
 import io
 import json
 import os
+import sys
 from datetime import date, timedelta
 
 from flask import (
@@ -21,7 +22,11 @@ from flask import (
 
 import accounting
 import db
+import sync
 from accounting import LedgerError, TXN_TYPE_LABELS
+
+# When frozen by PyInstaller, templates/static are unpacked next to _MEIPASS.
+BASE_DIR = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 
 
 def month_start(d):
@@ -71,12 +76,30 @@ def resolve_period(args):
 
 
 def create_app(db_path=None):
-    app = Flask(__name__)
+    app = Flask(
+        __name__,
+        template_folder=os.path.join(BASE_DIR, "templates"),
+        static_folder=os.path.join(BASE_DIR, "static"),
+    )
     app.secret_key = os.environ.get("SECRET_KEY", "dev-only-not-secret")
     app.config["DB_PATH"] = db_path or os.environ.get("LEDGER_DB", "ledger.db")
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
     db.init_db(app.config["DB_PATH"])
+
+    def changed(conn):
+        """Mark the ledger dirty and queue a Google Sheet push."""
+        sync.mark_dirty(conn)
+        if not app.config.get("TESTING"):
+            sync.schedule_push(app.config["DB_PATH"])
+
+    # Catch up on changes made while offline (or before sync was set up).
+    startup_conn = db.connect(app.config["DB_PATH"])
+    try:
+        if sync.get_config(startup_conn)["dirty"]:
+            sync.schedule_push(app.config["DB_PATH"])
+    finally:
+        startup_conn.close()
     app.teardown_appcontext(db.close_db)
     app.jinja_env.filters["money"] = accounting.fmt_money
     app.jinja_env.filters["usd"] = lambda cents: ("-$" if cents < 0 else "$") + accounting.fmt_money(abs(cents))
@@ -123,6 +146,7 @@ def create_app(db_path=None):
         conn = db.get_db()
         txn_type = request.form.get("type", "")
         accounting.post_transaction(conn, txn_type, request.form)
+        changed(conn)
         flash("Transaction added.", "success")
         return redirect(url_for("transactions"))
 
@@ -136,6 +160,7 @@ def create_app(db_path=None):
         if request.method == "POST":
             txn_type = request.form.get("type", "")
             accounting.update_transaction(conn, txn_id, txn_type, request.form)
+            changed(conn)
             flash("Transaction updated.", "success")
             return redirect(url_for("transactions"))
         return render_template(
@@ -149,6 +174,7 @@ def create_app(db_path=None):
     def delete_transaction(txn_id):
         conn = db.get_db()
         if accounting.delete_transaction(conn, txn_id):
+            changed(conn)
             flash("Transaction deleted.", "success")
         else:
             flash("Transaction not found.", "error")
@@ -180,10 +206,17 @@ def create_app(db_path=None):
     @app.route("/settings")
     def settings():
         conn = db.get_db()
+        try:
+            with open(os.path.join(BASE_DIR, "apps_script.gs")) as f:
+                apps_script = f.read()
+        except OSError:
+            apps_script = ""
         return render_template(
             "settings.html",
             income_categories=accounting.categories(conn, "income"),
             expense_categories=accounting.categories(conn, "expense"),
+            sync=sync.get_config(conn),
+            apps_script=apps_script,
         )
 
     @app.route("/categories", methods=["POST"])
@@ -192,7 +225,29 @@ def create_app(db_path=None):
         accounting.add_category(
             conn, request.form.get("name"), request.form.get("type", "")
         )
+        changed(conn)
         flash("Category added.", "success")
+        return redirect(url_for("settings"))
+
+    # ------------------------------------------------------------------
+    # Google Sheet backup
+
+    @app.route("/settings/sync", methods=["POST"])
+    def save_sync_settings():
+        conn = db.get_db()
+        sync.save_config(conn, request.form.get("url"), request.form.get("token"))
+        if sync.get_config(conn)["url"]:
+            sync.mark_dirty(conn)
+            flash("Google Sheet backup saved — click “Sync now” to test it.", "success")
+        else:
+            flash("Google Sheet backup turned off.", "success")
+        return redirect(url_for("settings"))
+
+    @app.route("/sync-now", methods=["POST"])
+    def sync_now():
+        conn = db.get_db()
+        ok, message = sync.push(conn)
+        flash(message, "success" if ok else "error")
         return redirect(url_for("settings"))
 
     # ------------------------------------------------------------------
@@ -225,6 +280,7 @@ def create_app(db_path=None):
             raise LedgerError("That file is not valid JSON.")
         conn = db.get_db()
         count = accounting.import_backup(conn, data)
+        changed(conn)
         flash(f"Backup restored: {count} transactions imported.", "success")
         return redirect(url_for("settings"))
 

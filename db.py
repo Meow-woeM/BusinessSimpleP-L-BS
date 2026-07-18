@@ -34,6 +34,11 @@ CREATE TABLE IF NOT EXISTS entry_lines (
 CREATE INDEX IF NOT EXISTS idx_lines_txn ON entry_lines(transaction_id);
 CREATE INDEX IF NOT EXISTS idx_lines_account ON entry_lines(account_id);
 CREATE INDEX IF NOT EXISTS idx_txn_date ON transactions(txn_date);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 # System accounts are the fixed skeleton the hidden double-entry posts against.
@@ -50,7 +55,17 @@ SEED_ACCOUNTS = [
     ("5000", "Rent", "expense", 0),
     ("5100", "Utilities", "expense", 0),
     ("5200", "Supplies", "expense", 0),
+    ("5210", "Cleaning Chemicals & Degreasers", "expense", 0),
+    ("5220", "Water & Wastewater Disposal", "expense", 0),
+    ("5230", "Fuel", "expense", 0),
+    ("5240", "Vehicle Maintenance & Repairs", "expense", 0),
+    ("5250", "Small Tools & Equipment", "expense", 0),
+    ("5260", "Uniforms & Safety Gear", "expense", 0),
+    ("5270", "Licenses & Permits", "expense", 0),
+    ("5280", "Phone & Internet", "expense", 0),
+    ("5290", "Merchant & Bank Fees", "expense", 0),
     ("5300", "Payroll", "expense", 0),
+    ("5310", "Contract Labor", "expense", 0),
     ("5400", "Insurance", "expense", 0),
     ("5500", "Advertising & Marketing", "expense", 0),
     ("5600", "Software & Subscriptions", "expense", 0),
@@ -75,19 +90,37 @@ def connect(db_path):
 
 
 def init_db(db_path):
-    """Create the schema and seed accounts if the database is new."""
+    """Create the schema and seed accounts.
+
+    INSERT OR IGNORE keys on the unique account code, so databases created by
+    older versions pick up newly added seed categories without touching
+    existing rows. User-added categories can't collide: add_category always
+    allocates codes above the highest seeded code in its range.
+    """
     conn = connect(db_path)
     try:
         with conn:
             conn.executescript(SCHEMA)
-            existing = conn.execute("SELECT COUNT(*) FROM accounts").fetchone()[0]
-            if existing == 0:
-                conn.executemany(
-                    "INSERT INTO accounts (code, name, type, is_system) VALUES (?, ?, ?, ?)",
-                    SEED_ACCOUNTS,
-                )
+            conn.executemany(
+                "INSERT OR IGNORE INTO accounts (code, name, type, is_system) VALUES (?, ?, ?, ?)",
+                SEED_ACCOUNTS,
+            )
     finally:
         conn.close()
+
+
+def get_setting(conn, key, default=""):
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row is not None else default
+
+
+def set_setting(conn, key, value):
+    with conn:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, str(value)),
+        )
 
 
 def get_db():
