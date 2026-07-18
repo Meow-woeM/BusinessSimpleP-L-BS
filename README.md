@@ -26,18 +26,24 @@ transaction is written atomically as a balanced journal entry.
 
 ## Getting started
 
-Requires Python 3.10+.
+Requires Python 3.10+ (on Windows, install from https://www.python.org/downloads/
+and check "Add python.exe to PATH" during setup).
+
+**Windows:** double-click `run.bat`. It sets everything up on first run and
+opens the app in your browser. Close the console window to stop the app.
+
+**macOS / Linux:**
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
 
 Then open http://127.0.0.1:5000 in your browser. Data is stored in `ledger.db`
 (SQLite) next to the app; set the `LEDGER_DB` environment variable to use a
-different path.
+different path, and set `FLASK_DEBUG=1` to run with Flask's debugger enabled.
 
 ## Running tests
 

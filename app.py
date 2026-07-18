@@ -232,8 +232,9 @@ def create_app(db_path=None):
         buf = io.StringIO()
         writer = csv.writer(buf)
         writer.writerows(rows)
+        # UTF-8 BOM so Excel on Windows decodes non-ASCII text correctly.
         return Response(
-            buf.getvalue(),
+            "\ufeff" + buf.getvalue(),
             mimetype="text/csv",
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
@@ -298,4 +299,4 @@ def create_app(db_path=None):
 
 
 if __name__ == "__main__":
-    create_app().run(debug=True)
+    create_app().run(debug=os.environ.get("FLASK_DEBUG") == "1")
