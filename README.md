@@ -1,5 +1,7 @@
 # Simple P&L — income & expense tracker
 
+[![Download for Windows](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_Download_for_Windows-SimplePL.exe-2456c4?style=for-the-badge)](https://github.com/Meow-woeM/BusinessSimpleP-L-BS/releases/latest/download/SimplePL.exe)
+
 A small, single-user bookkeeping app for a small business. You enter income,
 expenses, owner contributions/draws, loans, and asset purchases through simple
 forms; the app maintains a proper double-entry ledger behind the scenes, so the
@@ -28,11 +30,17 @@ transaction is written atomically as a balanced journal entry.
 
 ### Standalone Windows app (no Python needed)
 
-Every push to the main branches builds `SimplePL.exe` on a Windows runner via
-GitHub Actions (`Build Windows exe` workflow). Download it from the workflow
-run's **SimplePL-windows** artifact, put it anywhere (Desktop, a USB stick),
-and double-click it — your browser opens with the app. Use the **Quit** button
-in the top-right to stop it.
+Click the **Download for Windows** button at the top of this page (it always
+serves the newest build, from the [latest release](https://github.com/Meow-woeM/BusinessSimpleP-L-BS/releases/latest)).
+Put `SimplePL.exe` anywhere (Desktop, a USB stick) and double-click it — your
+browser opens with the app. Use the **Quit** button in the top-right to stop
+it. Windows SmartScreen may warn on first run because the exe is unsigned:
+click **More info → Run anyway**.
+
+Behind the scenes, every push to the main branches rebuilds the exe on a
+Windows runner via GitHub Actions (`Build Windows exe` workflow), runs the
+full test suite on Windows, smoke-tests the built exe, and updates the
+rolling `latest` release that the button points to.
 
 Your data is saved in `ledger.db` next to the exe (or in `%APPDATA%\SimplePL`
 if that folder isn't writable). Errors, if any, are logged to

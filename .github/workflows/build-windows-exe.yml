@@ -7,6 +7,9 @@ on:
       - main
       - claude/income-expenses-tracker-2pupxa
 
+permissions:
+  contents: write  # needed to publish the rolling "latest" release
+
 jobs:
   build:
     runs-on: windows-latest
@@ -55,3 +58,18 @@ jobs:
           name: SimplePL-windows
           path: dist/SimplePL.exe
           if-no-files-found: error
+
+      - name: Publish rolling "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release view latest --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create latest --repo $env:GITHUB_REPOSITORY `
+              --target $env:GITHUB_SHA `
+              --title "SimplePL for Windows (latest build)" `
+              --notes "Rolling release: always carries the newest SimplePL.exe, rebuilt and smoke-tested on every push. Download it, put it anywhere, and double-click - your browser opens with the app. Your data is saved to ledger.db next to the exe. Windows SmartScreen may warn on first run because the exe is unsigned: click 'More info' then 'Run anyway'."
+          }
+          gh release upload latest dist/SimplePL.exe --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { exit 1 }
