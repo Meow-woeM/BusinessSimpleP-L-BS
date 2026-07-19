@@ -1,5 +1,6 @@
 # Simple P&L — income & expense tracker
 
+[![Open the Web App](https://img.shields.io/badge/%F0%9F%8C%90_Open_the_Web_App-no_install_needed-1a7f4b?style=for-the-badge)](https://meow-woem.github.io/BusinessSimpleP-L-BS/)
 [![Download for Windows](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_Download_for_Windows-SimplePL.exe-2456c4?style=for-the-badge)](https://github.com/Meow-woeM/BusinessSimpleP-L-BS/releases/latest/download/SimplePL.exe)
 
 A small, single-user bookkeeping app for a small business. You enter income,
@@ -27,6 +28,22 @@ All amounts are stored as integer cents (no floating-point drift), and every
 transaction is written atomically as a balanced journal entry.
 
 ## Getting started
+
+### Web app (nothing to install)
+
+Click the **Open the Web App** button at the top of this page, or go to
+https://meow-woem.github.io/BusinessSimpleP-L-BS/ — it's the same app, running
+entirely in your browser. Your books are saved automatically in the browser
+itself (nothing is uploaded to any server), and you can install it as an app:
+look for the install icon in the address bar (Chrome/Edge) or "Add to Home
+Screen" on a phone. It even works offline after the first visit.
+
+Because the data lives in your browser, use **Settings → Download backup** for
+safekeeping — the backup file is identical to the desktop app's format, so you
+can move your books freely between the web app and `SimplePL.exe`. The browser
+version's ledger engine is held to the exact same numbers as the desktop
+engine by a parity test (`node webapp/ledger.test.mjs`) that runs before every
+deploy.
 
 ### Standalone Windows app (no Python needed)
 

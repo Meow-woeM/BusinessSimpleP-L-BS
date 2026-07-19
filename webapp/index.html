@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2456c4">
+  <title>Simple P&amp;L</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <span class="brand">Simple P&amp;L</span>
+      <nav id="nav">
+        <a href="#transactions" data-view="transactions">Transactions</a>
+        <a href="#pnl" data-view="pnl">Profit &amp; Loss</a>
+        <a href="#balance-sheet" data-view="balance-sheet">Balance Sheet</a>
+        <a href="#settings" data-view="settings">Settings</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    <div id="flash"></div>
+
+    <!-- ================================================== Transactions -->
+    <section id="view-transactions" class="view">
+      <h1>Transactions</h1>
+      <section class="card">
+        <h2 id="txn-form-title">Add a transaction</h2>
+        <form id="txn-form">
+          <input type="hidden" name="editing_id" value="">
+          <div class="form-grid">
+            <label>Type
+              <select name="type" id="txn-type"></select>
+            </label>
+            <label>Date
+              <input type="date" name="date" required min="1900-01-01" max="2999-12-31">
+            </label>
+            <label>Amount ($)
+              <input type="text" name="amount" required inputmode="decimal" placeholder="0.00">
+            </label>
+            <label id="field-income-category">Category
+              <select name="income_category" id="income-category-select"></select>
+            </label>
+            <label id="field-expense-category">Category
+              <select name="expense_category" id="expense-category-select"></select>
+            </label>
+            <label id="field-interest">Interest portion ($, optional)
+              <input type="text" name="interest" inputmode="decimal" placeholder="0.00">
+            </label>
+            <label class="grow">Description (optional)
+              <input type="text" name="description" placeholder="e.g. Invoice #42, July rent">
+            </label>
+          </div>
+          <button type="submit" id="txn-submit">Add transaction</button>
+          <button type="button" id="txn-cancel-edit" class="button-link secondary" hidden>Cancel</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>History</h2>
+          <button type="button" class="button-link" id="export-txn-csv">Download CSV</button>
+        </div>
+        <form id="filter-form" class="filter-bar">
+          <label>Type
+            <select name="type" id="filter-type"><option value="">All types</option></select>
+          </label>
+          <label>From <input type="date" name="start"></label>
+          <label>To <input type="date" name="end"></label>
+          <button type="submit">Filter</button>
+          <button type="button" class="link-button" id="filter-clear">Clear</button>
+        </form>
+        <div id="txn-table"></div>
+      </section>
+    </section>
+
+    <!-- ================================================== P&L -->
+    <section id="view-pnl" class="view" hidden>
+      <h1>Profit &amp; Loss</h1>
+      <section class="card">
+        <div class="preset-links" id="pnl-presets"></div>
+        <form id="pnl-form" class="filter-bar">
+          <label>From <input type="date" name="start" required></label>
+          <label>To <input type="date" name="end" required></label>
+          <button type="submit">Apply</button>
+          <button type="button" class="button-link" id="export-pnl-csv">Download CSV</button>
+        </form>
+      </section>
+      <section class="card report" id="pnl-report"></section>
+    </section>
+
+    <!-- ================================================== Balance sheet -->
+    <section id="view-balance-sheet" class="view" hidden>
+      <h1>Balance Sheet</h1>
+      <section class="card">
+        <form id="bs-form" class="filter-bar">
+          <label>As of <input type="date" name="as_of" required></label>
+          <button type="submit">Apply</button>
+          <button type="button" class="button-link" id="export-bs-csv">Download CSV</button>
+        </form>
+      </section>
+      <section class="card report" id="bs-report"></section>
+    </section>
+
+    <!-- ================================================== Settings -->
+    <section id="view-settings" class="view" hidden>
+      <h1>Settings</h1>
+      <section class="card">
+        <h2>Categories</h2>
+        <div class="two-col">
+          <div><h3>Income</h3><ul class="plain" id="income-cat-list"></ul></div>
+          <div><h3>Expenses</h3><ul class="plain" id="expense-cat-list"></ul></div>
+        </div>
+        <form id="category-form" class="filter-bar">
+          <label>New category <input type="text" name="name" required placeholder="e.g. Consulting"></label>
+          <label>Type
+            <select name="type">
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+          </label>
+          <button type="submit">Add category</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Backup &amp; restore</h2>
+        <p>Your books are saved automatically in this browser. Download a backup to move
+           them to another device (or to the desktop app — the file format is identical),
+           and restore from a backup file at any time.</p>
+        <p>
+          <button type="button" class="button-link" id="export-backup">Download backup (JSON)</button>
+          <button type="button" class="button-link" id="export-txn-csv-2">Download transactions (CSV)</button>
+        </p>
+        <form id="import-form">
+          <label>Restore from backup file
+            <input type="file" id="import-file" accept="application/json,.json" required>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="import-confirm">
+            I understand this will <strong>replace all existing data</strong> in this browser
+            with the backup's contents.
+          </label>
+          <button type="submit" class="danger">Restore backup</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>About your data</h2>
+        <p>Everything is stored locally in this browser (nothing is uploaded anywhere).
+           That means your books are private to this device and browser profile —
+           clearing the browser's site data would erase them, so download a backup
+           now and then. You can also install this page as an app: look for the
+           install icon in your browser's address bar (Chrome/Edge) or use
+           "Add to Home Screen" on a phone.</p>
+      </section>
+    </section>
+  </main>
+  <script src="./ledger.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
